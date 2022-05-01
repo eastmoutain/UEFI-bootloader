@@ -1,0 +1,15 @@
+1. build lk.bin
+    patch the files in lk_pathes folder to
+    lk repo:https://github.com/littlekernel/lk
+
+2. create EFI bootable image
+    run efi.sh to create an UEFI image, the image
+    can be flashed into USB storage device
+    and boot from USB storage device.
+
+3. flash to USB storage device
+    dd if=efi.image of=/dev/sdx status=progress
+
+4. boot from qemu
+    sudo qemu-system-x86_64 -hdb /dev/sdx --bios OVMF.fd -m 1024 -nographic
+
