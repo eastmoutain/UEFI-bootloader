@@ -32,6 +32,24 @@ static nbfile nbkernel;
 static nbfile nbramdisk;
 static nbfile nbcmdline;
 
+efi_physical_addr image_phyaddr = 0;
+
+static int copy_Lstring(char *dst_buf, size_t dst_buf_len, char *src_string)
+{
+    int i;
+    size_t src_string_len = strlen(src_string);
+
+    if (dst_buf_len >= 2 * src_string_len) {
+        for (i = 0; i < src_string_len; i++) {
+            dst_buf[2*i] = src_string[i];
+            dst_buf[2*i+1]=0;
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
 nbfile* netboot_get_buffer(const char* name, size_t size) {
     if (!strcmp(name, NB_KERNEL_FILENAME)) {
         return &nbkernel;
@@ -334,6 +352,7 @@ static inline void swap_to_head(const char c, char* s, const size_t n) {
 }
 
 EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
+    char image_name_buf[128];
     xefi_init(img, sys);
     gConOut->ClearScreen(gConOut);
 
@@ -421,24 +440,28 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
     // Look for a kernel image on disk
     size_t ksz = 0;
     unsigned ktype = IMAGE_INVALID;
-    printf("load lk.bin\r\n");
-    void* kernel = xefi_load_file(L"lk.bin", &ksz, 0);
-    printf("lk.bin size 0x%x\r\n", ksz);
+    // the iamge name is set in cmdline file
+    const char* image_name = cmdline_get("image_name", "lk.bin");
+    printf("load %s\r\n", image_name);
+    memset(image_name_buf, 0, sizeof(image_name_buf));
+    copy_Lstring(image_name_buf, sizeof(image_name_buf), image_name);
+    void* kernel = xefi_load_file(image_name_buf, &ksz, 0);
+    printf("%s size 0x%x\r\n", image_name, ksz);
 
     switch ((ktype = identify_image(kernel, ksz))) {
     case IMAGE_EMPTY:
-        printf("not found lk.bin\n");
+        printf("not found %s\n", image_name);
         break;
     case IMAGE_KERNEL:
-        printf("lk.bin is a kernel image\n");
+        printf("%s is a kernel image\n", image_name);
         break;
     case IMAGE_COMBO:
-        printf("lk.bin is a kernel+ramdisk combo image\n");
+        printf("%s is a kernel+ramdisk combo image\n", image_name);
         break;
     case IMAGE_RAMDISK:
-        printf("lk.bin is a ramdisk?!\n");
+        printf("%s is a ramdisk?!\n", image_name);
     case IMAGE_INVALID:
-        printf("lk.bin is not a valid kernel or combo image\n");
+        printf("%s is not a valid kernel or combo image\n", image_name);
         ktype = IMAGE_INVALID;
         ksz = 0;
         kernel = NULL;
@@ -489,6 +512,7 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
             if (!kernel) printf("or ");
             printf("(n) for network boot");
         }
+
         if (kernel) {
             printf(", ");
             printf("or (c) to boot the zircon.bin on the device");

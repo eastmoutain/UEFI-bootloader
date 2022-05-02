@@ -1,3 +1,4 @@
-abc=123
 bootloader.default=network
+image_name=lk.bin
+image_phyaddr=0x100000
 

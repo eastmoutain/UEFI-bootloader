@@ -10,6 +10,7 @@
 #include <cmdline.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <xefi.h>
 
@@ -135,7 +136,7 @@ static int header_check(void* image, size_t sz, uint64_t* _entry,
 
 static int item_check(bootdata_t* bd, size_t sz) {
     int align = (bd->flags & BOOTDATA_FLAG_X32)? 4: 8;
-    printf("item_check: sz 0x%lx aligned length 0x%x\r\n", sz, BOOTDATA_ALIGN(bd->length));
+    //printf("item_check: sz 0x%lx aligned length 0x%x\r\n", sz, BOOTDATA_ALIGN(bd->length));
     if (sz > 0x7FFFFFFF) {
         // disallow 2GB+ items to avoid wrap on align issues
         return -1;
@@ -152,7 +153,6 @@ static int item_check(bootdata_t* bd, size_t sz) {
 
 //TODO: verify crc32 when present
 unsigned identify_image(void* image, size_t sz) {
-    printf("identify_image: image 0x%lx, size 0x%lx\r\n", (uint64_t)image, sz);
     if (sz == 0) {
         return IMAGE_EMPTY;
     }
@@ -163,8 +163,8 @@ unsigned identify_image(void* image, size_t sz) {
     bootdata_t* bd = image;
 
     uint64_t *hd = image;
-    printf("bootdata: type 0x%x length 0x%x extra 0x%x flags 0x%x reserved0 0x%x reserved1 0x%x magic 0x%x crc32 0x%x\r\n",
-            bd->type, bd->length, bd->extra, bd->flags, bd->reserved0, bd->reserved1, bd->magic, bd->crc32);
+    //printf("bootdata: type 0x%x length 0x%x extra 0x%x flags 0x%x reserved0 0x%x reserved1 0x%x magic 0x%x crc32 0x%x\r\n",
+    //        bd->type, bd->length, bd->extra, bd->flags, bd->reserved0, bd->reserved1, bd->magic, bd->crc32);
 
     sz -= sizeof(bootdata_t);
     if ((bd->type != BOOTDATA_CONTAINER) ||
@@ -470,7 +470,7 @@ int boot_core(efi_handle img, efi_system_table* sys, void* image, size_t isz)
         if (header_check(image, isz, &entry, NULL, NULL, &x32)) {
             return -1;
         }
-        printf("entry: 0x%lx %s\r\n", entry, x32? "32bit OS":"64bit OS");
+        printf("entry: 0x%lx %s\r\n", entry, x32? "32bit image":"64bit image");
 
         // allocate pages for boot args
         size_t pages = (FRONT_BYTES + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -553,8 +553,10 @@ int boot_core(efi_handle img, efi_system_table* sys, void* image, size_t isz)
             }
         }
 
+        const char* paddr_string = cmdline_get("image_phyaddr", "0x100000");
         // Allocate at 1M and copy kernel down there
-        efi_physical_addr mem = 0x100000;
+        efi_physical_addr mem = strtol(paddr_string, NULL, 16);
+        printf("efi_physical_addr 0x%x\r\n", mem);
         pages = BYTES_TO_PAGES(isz);
         //TODO: sort out why pages + 1?  Inherited from deprecated_load()
         if (bs->AllocatePages(AllocateAddress, EfiLoaderData, pages + 1, &mem)) {
