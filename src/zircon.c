@@ -553,16 +553,16 @@ int boot_core(efi_handle img, efi_system_table* sys, void* image, size_t isz)
             }
         }
 
-        const char* paddr_string = cmdline_get("image_phyaddr", "0x100000");
+        const char* paddr_string = cmdline_get("boot.phyaddr", "0x100000");
         // Allocate at 1M and copy kernel down there
         efi_physical_addr mem = strtol(paddr_string, NULL, 16);
-        printf("efi_physical_addr 0x%x\r\n", mem);
         pages = BYTES_TO_PAGES(isz);
         //TODO: sort out why pages + 1?  Inherited from deprecated_load()
         if (bs->AllocatePages(AllocateAddress, EfiLoaderData, pages + 1, &mem)) {
             printf("boot: cannot obtain memory @ %p\n", (void*) mem);
             goto fail;
         }
+        printf("copy boot image to 0x%x\r\n", mem);
         memcpy((void*)mem, image, isz);
 
         // Obtain the system memory map

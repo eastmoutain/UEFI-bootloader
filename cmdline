@@ -1,4 +1,6 @@
-bootloader.default=network
-image_name=lk.bin
-image_phyaddr=0x100000
+boot.source=local
+boot.timeout=3
+
+boot.image=lk.bin
+boot.phyaddr=0x100000
 

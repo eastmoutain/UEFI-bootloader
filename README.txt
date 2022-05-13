@@ -33,3 +33,23 @@ Tianocore UEFI Open Source Community
 http://www.tianocore.org/
 https://github.com/tianocore
 
+
+valid cmdline args
+--------------------------------
+
+boot.source=[network,local]
+if not set, the default value is local
+default local
+
+boot.timeout=3
+the time that awaiting for user input from keyboard
+default 5 sec
+
+boot.image=lk.bin
+give the boot target binary file name
+default lk.bin
+
+boot.phyaddr=0x100000
+copy target binary to the physcial adddress
+default 0x100000
+

@@ -1,11 +1,35 @@
 
-#define CODE_SELECTOR 0x08
-#define DATA_SELECTOR 0x10
+#define DATA_SELECTOR 0x18
+#define CODE_SELECTOR 0x20
 
 #define FUNCTION(x) .global x; .type x,STT_FUNC; x:
 #define X86_MSR_EFER 0xc0000080
 
 .section .text, "ax", @progbits
+
+// debub code to print 234 to COM port
+// // set com port
+//    movw  $0x3f8, %dx
+//    // \r\n
+//    movb $(0x0a), %al
+//    outb %al, %dx
+//    movb $(0x0d), %al
+//    outb %al, %dx
+//
+//    movb $(0x33), %al
+//    outb %al, %dx
+//    movb $(0x34), %al
+//    outb %al, %dx
+//    movb $(0x35), %al
+//    outb %al, %dx
+//
+//    // \r\n
+//    movb $(0x0a), %al
+//    outb %al, %dx
+//    movb $(0x0d), %al
+//    outb %al, %dx
+//loop3:
+//    jmp loop3
 
 .code64
 // 1. change to compatble mode
@@ -14,18 +38,20 @@
 // 4. jump to kernel
 // void jump_to_legacy_kernel(void *entry, void *bootdata)
 FUNCTION(jump_to_legacy_kernel)
+	cli
+
     mov $DATA_SELECTOR, %eax
-    mov %eax, %ds
-    mov %eax, %es
-    mov %eax, %fs
-    mov %eax, %gs
-    mov %eax, %ss
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %gs
+	movw %ax, %ss
+
 
     push  $CODE_SELECTOR
 	lea  3(%rip), %rax
     //push  $compatble_entry
 	push %rax
-    // TODO: try retq?
     lretq
 
 

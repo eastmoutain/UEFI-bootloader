@@ -22,7 +22,7 @@
 
 #include <netboot.h>
 
-#define DEFAULT_TIMEOUT 3
+#define DEFAULT_TIMEOUT 5
 
 #define KBUFSIZE (32*1024*1024)
 #define RBUFSIZE (512 * 1024 * 1024)
@@ -32,7 +32,7 @@ static nbfile nbkernel;
 static nbfile nbramdisk;
 static nbfile nbcmdline;
 
-efi_physical_addr image_phyaddr = 0;
+efi_physical_addr boot_phyaddr = 0;
 
 static int copy_Lstring(char *dst_buf, size_t dst_buf_len, char *src_string)
 {
@@ -396,12 +396,15 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
     }
 
     // Default boot defaults to network
-    const char* defboot = cmdline_get("bootloader.default", "network");
-    const char* nodename = cmdline_get("zircon.nodename", "");
+    const char* defboot = cmdline_get("boot.source", "local");
+    const char* nodename = cmdline_get("boot.nodename", "");
 
     printf("defboot:%s\r\n", defboot);
     // See if there's a network interface
-    bool have_network = netboot_init(nodename) == 0;
+    bool have_network = 0;
+    if (memcmp(defboot, "network", 7) == 0)
+        have_network = (netboot_init(nodename) == 0)? 1: 0;
+
     if (have_network) {
         if (have_fb) {
             draw_nodename(netboot_nodename());
@@ -413,7 +416,7 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
         // return the generated value in which case it needs to be added to
         // the command line arguments.
         if (nodename[0] == 0) {
-            cmdline_set("zircon.nodename", netboot_nodename());
+            cmdline_set("boot.nodename", netboot_nodename());
         }
     }
 
@@ -441,7 +444,7 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
     size_t ksz = 0;
     unsigned ktype = IMAGE_INVALID;
     // the iamge name is set in cmdline file
-    const char* image_name = cmdline_get("image_name", "lk.bin");
+    const char* image_name = cmdline_get("boot.image", "lk.bin");
     printf("load %s\r\n", image_name);
     memset(image_name_buf, 0, sizeof(image_name_buf));
     copy_Lstring(image_name_buf, sizeof(image_name_buf), image_name);
@@ -479,17 +482,17 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
         valid_keys[key_idx++] = 'n';
     }
     if (kernel != NULL) {
-        valid_keys[key_idx++] = 'c';
+        valid_keys[key_idx++] = 'l';
     }
     //if (zedboot_kernel) {
     //    valid_keys[key_idx++] = 'z';
     //}
 
     //// The first entry in valid_keys will be the default after the timeout.
-    //// Use the value of bootloader.default to determine the first entry. If
-    //// bootloader.default is not set, use "network".
+    //// Use the value of boot.source to determine the first entry. If
+    //// boot.source is not set, use "network".
     if (!memcmp(defboot, "local", 5)) {
-        swap_to_head('c', valid_keys, key_idx);
+        swap_to_head('l', valid_keys, key_idx);
     } else if (!memcmp(defboot, "zedboot", 7)) {
         swap_to_head('z', valid_keys, key_idx);
     } else {
@@ -504,7 +507,7 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
     // The second parameter can be any value outside of the range [0,0xffff]
     gBS->SetWatchdogTimer(0, 0x10000, 0, NULL);
 
-    int timeout_s = cmdline_get_uint32("bootloader.timeout", DEFAULT_TIMEOUT);
+    int timeout_s = cmdline_get_uint32("boot.timeout", DEFAULT_TIMEOUT);
     while (true) {
         printf("\nPress (b) for the boot menu");
         if (have_network) {
@@ -515,7 +518,7 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
 
         if (kernel) {
             printf(", ");
-            printf("or (c) to boot the zircon.bin on the device");
+            printf("or (l) to boot %s from local the device", image_name);
         }
         //if (zedboot_kernel) {
         //    printf(", ");
@@ -558,7 +561,7 @@ EFIAPI efi_status efi_main(efi_handle img, efi_system_table* sys) {
         case 'z':
             //zedboot(img, sys, zedboot_kernel, zedboot_size);
             goto fail;
-        case 'c':
+        case 'l':
             // only boot kernel without ramdisk
             boot_core(gImg, gSys, kernel, ksz);
             goto fail;

@@ -1,4 +1,5 @@
 #!/bin/bash
+
 IMAGE=efi.img
 echo "Creating $IMAGE"
 
